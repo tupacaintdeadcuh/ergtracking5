@@ -1,5 +1,6 @@
-import crypto from 'crypto';
+﻿import crypto from 'crypto';
 const COOKIE='erg_sess';
+const MAX_AGE=60*60*24*7;
 export function sign(obj, secret){
   const body = Buffer.from(JSON.stringify(obj)).toString('base64url');
   const sig = crypto.createHmac('sha256', secret).update(body).digest('base64url');
@@ -13,8 +14,18 @@ export function verify(cookie, secret){
   try{ return JSON.parse(Buffer.from(body,'base64url').toString()) }catch{ return null }
 }
 export function setCookie(res, value){
-  res.setHeader('Set-Cookie', `${COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`);
+  res.setHeader('Set-Cookie', buildCookie(value));
 }
 export function getCookie(req){
   const h=req.headers.cookie||''; const m=h.match(/erg_sess=([^;]+)/); return m?m[1]:null;
+}
+function buildCookie(value){
+  const parts=[`${COOKIE}=${value}`,'Path=/','HttpOnly','SameSite=Lax',`Max-Age=${MAX_AGE}`];
+  if(shouldUseSecureCookies()) parts.push('Secure');
+  return parts.join('; ');
+}
+function shouldUseSecureCookies(){
+  const pref=(process.env.COOKIE_SECURE||'').toLowerCase();
+  if(!pref) return true;
+  return pref !== 'false';
 }
