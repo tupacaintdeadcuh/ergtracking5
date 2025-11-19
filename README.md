@@ -1,30 +1,62 @@
+﻿# ERGTracking5
 
-# ERGTracking5 — Vercel API Routes
+Self-hosted build of the ERG activity tracker. The UI ships from `/public` and a lightweight Express server exposes the Discord OAuth and submission endpoints under `/api/*`.
 
-This version is **Vercel-native**: the backend runs in **Serverless Functions** under `/api/*` and the frontend is static in `/public`.
-No custom Node server needed, so you won't get "Not Found" on `/auth/discord` anymore.
+## Prerequisites
+- Node.js 18+
+- npm (ships with Node)
+- Discord application (client ID/secret) and webhook URL
 
-## Deploy on Vercel
-- Import this repo
-- **Build & Output:**
-  - Root Directory: (blank)
-  - Install Command: (blank) — no deps required
-  - Build Command: (blank)
-  - Output Directory: public
-- Environment Variables:
-  - DISCORD_CLIENT_ID=...
-  - DISCORD_CLIENT_SECRET=...
-  - DISCORD_CALLBACK_URL=https://ergtracking5.vercel.app/api/auth/callback
-  - SESSION_SECRET=any-long-random-string
-  - WEBHOOK_URL=your discord webhook URL
+## Setup
+1. Clone the repo and `cd` into it.
+2. Install dependencies:
+   ```sh
+   npm install
+   ```
+3. Create a `.env` file in the project root:
+   ```ini
+   DISCORD_CLIENT_ID=your-client-id
+   DISCORD_CLIENT_SECRET=your-client-secret
+   DISCORD_CALLBACK_URL=http://localhost:3000/api/auth/callback
+   SESSION_SECRET=any-long-random-string
+   WEBHOOK_URL=https://discord.com/api/webhooks/...
+   # Optional: disable HTTPS-only cookies for local HTTP
+   COOKIE_SECURE=false
+   ```
 
-## Endpoints
-- GET /api/auth/discord        → redirects to Discord OAuth
-- GET /api/auth/callback       → handles code exchange, sets signed cookie, redirects to /?auth=success
-- GET /api/user                → returns session user
-- POST /api/submit/application → requires login, posts embed to Discord webhook
-- POST /api/submit/checkin     → requires login, posts embed to Discord webhook
-- POST /api/submit/training    → requires login, posts embed to Discord webhook
-- POST /api/submit/promotion   → requires login, posts embed to Discord webhook
+## Running Locally
+- Development (auto-restart on change):
+  ```sh
+  npm run dev
+  ```
+- Production-style run:
+  ```sh
+  npm start
+  ```
 
-Admin listing uses the webhook channel as the source of truth (no DB). You can later add persistence with a DB.
+Browse to `http://localhost:3000`. All API calls go through the same Express server (`server.js`), so no additional proxying is required.
+
+## Environment Variables
+| Name | Description |
+| ---- | ----------- |
+| `DISCORD_CLIENT_ID` | Discord OAuth application client ID. |
+| `DISCORD_CLIENT_SECRET` | OAuth client secret. |
+| `DISCORD_CALLBACK_URL` | Full URL to `/api/auth/callback` for your deployment. |
+| `SESSION_SECRET` | Random string used to sign the `erg_sess` cookie. |
+| `WEBHOOK_URL` | Discord webhook endpoint for submissions. |
+| `COOKIE_SECURE` (optional) | Defaults to `true`. Set to `false` when testing over plain `http://` so the browser accepts the cookie. |
+| `PORT` (optional) | HTTP port for the Express server. Defaults to `3000`. |
+
+## Deploying
+Deploy `server.js` plus the `public/` folder anywhere you can run Node 18+: a VM with PM2/systemd, Render, Railway, Fly.io, Docker, etc. Set the environment variables above on the host and start the server with `npm start`. The static assets will be served automatically, so you do not need an external CDN unless desired.
+
+## API Surface
+The Express server exposes the same routes that previously lived in Vercel functions:
+- `GET /api/auth/discord` and `GET /api/auth/callback`
+- `GET /api/user`
+- `POST /api/submit/application`
+- `POST /api/submit/checkin`
+- `POST /api/submit/training`
+- `POST /api/submit/promotion`
+
+Each submission endpoint validates the signed session cookie and forwards the payload to the configured Discord webhook.
